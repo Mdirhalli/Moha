@@ -4,17 +4,18 @@
 #				 G1 (SPRING 2018)				  #
 #				  5.1.3 SQL HW 1				  #
 #=================================================================================#
-
+/*
 1. Using the tablecmspop, write a query that finds the following:
-
-
 a. All rows where the claim is in California and the patient is a caucasian female.
-
+*/
 mdirhalli=# SELECT *
 mdirhalli-# FROM cmspop
 mdirhalli-# WHERE state = 'CA'
 mdirhalli-# AND race = 'white'
 mdirhalli-# AND sex = 'female';
+
+SELECT * FROM cmspop WHERE state ='CA' AND race = 'white' AND sex = 'female';
+
         id        |    dob     |    dod     |  sex   | race  | state | county | alz_rel_sen | heart_fail | cancer | depression
 ------------------+------------+------------+--------+-------+-------+--------+-------------+------------+--------+------------
  00131C35661B2926 | 1959-11-01 |            | female | white | CA    |     90 | f           | t          | t      | t
@@ -37,27 +38,31 @@ mdirhalli-# AND sex = 'female';
  00DA910E42BA3E35 | 1931-01-01 |            | female | white | CA    |    200 | f           | t          | f      | f
  00E4A3CEB0BC6FE6 | 1936-12-01 |            | female | white | CA    |    200 | f           | f          | f      | f
 
-
-
-
+/*
 b. The number of claims in Washington where the patient is male.
-
-mdirhalli=# SELECT count(*)
+*/
+mdirhalli=# SELECT COUNT(*)
 mdirhalli-# FROM cmspop
 mdirhalli-# WHERE state = 'WA'
 mdirhalli-# AND sex = 'male';
+
+SELECT COUNT(*) FROM cmspop WHERE state = 'WA' AND sex = 'male';
+
  count
 -------
  19909
 
 
-
+/*
  c. The claims whereidcontains either “000” or “34”.
-
+*/
 mdirhalli=# SELECT *
 mdirhalli-# FROM cmspop
 mdirhalli-# WHERE id LIKE '%000%'
 mdirhalli-# OR id LIKE '%34%';
+
+SELECT * FROM cmspop WHERE id LIKE '%000%' OR id LIKE '%34%';
+
         id        |    dob     |    dod     |  sex   |   race   | state | county | alz_rel_sen | heart_fail | cancer | depression
 ------------------+------------+------------+--------+----------+-------+--------+-------------+------------+--------+------------
  00013D2EFD8E45D1 | 1923-05-01 |            | male   | white    | MO    |    950 | f           | t          | f      | f
@@ -84,29 +89,41 @@ mdirhalli-# OR id LIKE '%34%';
  000D6D88463D8A76 | 1942-08-01 |            | male   | hispanic | NM    |      0 | f           | f          | f      | f
  000DDD364C46E2C6 | 1932-07-01 |            | male   | white    | IL    |    580 | f           | f          | f      | t
 
-
+/*
 d.The first-born person in Florida that is deceased (you can ignore the fact that more than oneperson might be born on the same day).
-
+*/
 mdirhalli=# SELECT *
 mdirhalli-# FROM cmspop
 mdirhalli-# WHERE state = 'FL'
 mdirhalli-# ORDER BY dob
 mdirhalli-# ASC;
+
+SELECT * FROM cmspop WHERE state = 'FL' ORDER BY dob ASC;
+
+
         id        |    dob     |    dod     |  sex   |   race   | state | county | alz_rel_sen | heart_fail | cancer | depression
 ------------------+------------+------------+--------+----------+-------+--------+-------------+------------+--------+------------
  FB1D718B4475F802 | 1909-01-01 |            | male   | white    | FL    |    120 | f           | t          | f      | f
 
 
 
-
+/*
 2. Using the tablecmsclaims, write a query that does the following:
-
 a. Calculates the ratio of carrier reimbursement to beneficiary responsibility in descending order.
+*/
 
 mdirhalli=# SELECT CASE WHEN carrier_reimb = 0 THEN 0
 mdirhalli-# ELSE (bene_resp :: FLOAT/ carrier_reimb)
 mdirhalli-# END AS ratio FROM cmsclaims
 mdirhalli-# ORDER BY ratio DESC;
+
+
+SELECT CASE WHEN carrier_reimb = 0 THEN 0
+            ELSE (bene_resp :: FLOAT/ carrier_reimb)
+       END AS ratio 
+FROM cmsclaims
+ORDER BY ratio DESC;
+       
         ratio
 ---------------------
                   23
@@ -132,6 +149,14 @@ mdirhalli-# END AS ratio
 mdirhalli-# FROM cmsclaims
 mdirhalli-# ORDER BY ratio
 mdirhalli-# DESC;
+
+SELECT CASE WHEN bene_resp = 0 THEN 0
+	    ELSE (carrier_reimb::FLOAT / bene_resp)
+       END AS ratio
+FROM cmsclaims
+ORDER BY ratio DESC;
+
+
        ratio
 --------------------
                 155
@@ -142,12 +167,16 @@ mdirhalli-# DESC;
                 109
                  95
 
-
+/*
 b. Finds the amount of greatest beneficiary responsibility.
-
+*/
 
 mdirhalli=# SELECT MAX(bene_resp) AS max_bene_resp
 mdirhalli-# FROM cmsclaims;
+
+SELECT MAX(bene_resp) AS max_bene_resp 
+FROM cmsclaims;
+
 
  max_bene_resp
 ---------------
@@ -160,14 +189,20 @@ mdirhalli=# SELECT bene_resp AS max_bene_resp
 mdirhalli-# FROM cmsclaims
 mdirhalli-# ORDER BY bene_resp DESC
 mdirhalli-# LIMIT 1;
+
+SELECT bene_resp AS max_bene_resp
+FROM cmsclaims
+ORDER BY bene_resp DESC LIMIT 1;
+
+
  max_bene_resp
 ---------------
           3590
 
-
+/*
 c.Finds the five records with the largest ratio of beneficiary responsibility to carrier reimbursement
 (note: this ratio is different than in sub-problema) where the number of HMO months is 4. Return columns with the id,hmo_mo, and the ratio.
-
+*/
 
 mdirhalli=# SELECT id, hmo_mo,
 mdirhalli-# CASE WHEN carrier_reimb = 0 THEN 0
@@ -175,6 +210,14 @@ mdirhalli-# ELSE ( bene_resp::FLOAT/carrier_reimb)
 mdirhalli-# END AS ratio
 mdirhalli-# FROM cmsclaims WHERE hmo_mo = 4
 mdirhalli-# ORDER BY ratio DESC LIMIT 5;
+
+SELECT id, hmo_mo, CASE WHEN carrier_reimb = 0 THEN 0
+		        ELSE ( bene_resp::FLOAT/carrier_reimb)
+		   END AS ratio
+FROM cmsclaims WHERE hmo_mo = 4
+ORDER BY ratio DESC LIMIT 5;
+
+		   
         id        | hmo_mo | ratio
 ------------------+--------+-------
  1FD6A4F354C9F70C |      4 |    11
@@ -193,6 +236,14 @@ mdirhalli-# ELSE (carrier_reimb::FLOAT/bene_resp)
 mdirhalli-# END AS ratio
 mdirhalli-# FROM cmsclaims WHERE hmo_mo = 4
 mdirhalli-# ORDER BY ratio DESC LIMIT 5;
+
+SELECT id, hmo_mo, CASE WHEN bene_resp = 0 THEN 0
+		        ELSE (carrier_reimb::FLOAT/bene_resp)
+		   END AS ratio
+FROM cmsclaims WHERE hmo_mo = 4
+ORDER BY ratio DESC LIMIT 5;
+
+
         id        | hmo_mo | ratio
 ------------------+--------+-------
  1CA6DFFA94E6B2C6 |      4 |    52
@@ -202,22 +253,30 @@ mdirhalli-# ORDER BY ratio DESC LIMIT 5;
  05092B3DA75D1AF2 |      4 |  31.5
 (5 rows)
 
-
+/*
 d. Counts the number of unique claim IDs for which the beneficiary was not financially responsible.Assume claim IDs in the data can contain duplicates.
-
+*/
 mdirhalli=# SELECT COUNT(DISTINCT id)
 mdirhalli-# FROM cmsclaims
 mdirhalli-# WHERE bene_resp = 0;
+
+SELECT COUNT(DISTINCT id) FROM cmsclaims WHERE bene_resp = 0;
+
+
  count
 --------
  604130
 
 
-
-e. Finds the average difference between carrier reimbursement and beneficiary responsibility.
+/*
+e. Finds the average difference between carrier reimbursement and beneficiary responsibility. */
 
 mdirhalli=# SELECT AVG(carrier_reimb - bene_resp) AS avg_difference
 mdirhalli-# FROM cmsclaims;
+
+SELECT AVG(carrier_reimb - bene_resp) AS avg_difference FROM cmsclaims;
+
+
     avg_difference
 ----------------------
  608.4206540026198418
