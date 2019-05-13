@@ -5,3 +5,64 @@ https://www.sqlservercentral.com/forums/topic/every-3rd-friday-of-the-month/page
 
 
 https://stackoverflow.com/questions/38068839/sql-server-query-to-get-second-thursday-of-a-month
+
+
+
+
+
+																		
+-- 3rd Monday for ACT - Sonoma, FASST - Sonoma, Katie A. - Napa, TBS - Marin, TBS - Sonoma, TBS - Sonoma - Katie A. -- 20191204
+LEFT JOIN
+(SELECT OP__DOCID , M3rd
+FROM (SELECT *, 
+		CASE WHEN Date_Admit_Program < DATEADD(DAY, (DATEDIFF(DAY, 1, DATEADD(MONTH, DATEDIFF(MONTH, 0, Date_Admit_Program), 0)) / 7) * 7 + 19, 2) 
+			THEN DATEADD(DAY, (DATEDIFF(DAY, 1, DATEADD(MONTH, DATEDIFF(MONTH, 0, Date_Admit_Program), 0)) / 7) * 7 + 19, 2) 
+			WHEN Date_Admit_Program >= DATEADD(DAY, (DATEDIFF(DAY, 1, DATEADD(MONTH, DATEDIFF(MONTH, 0, Date_Admit_Program), 0)) / 7) * 7 + 19, 2) 
+		         THEN DATEADD(DAY, (DATEDIFF(DAY, 1, 
+												  DATEADD(MONTH, DATEDIFF(MONTH, 0, Date_Admit_Program), 26)) / 7) * 7 + 19, 2)
+			END AS M3rd
+		FROM FD__PROGRAM_CLIENT) AS pcrd3
+		LEFT JOIN BLU_Programs AS pr3 ON pr3.PgmKey = pcrd3.PgmKey 
+		WHERE pr3.PgmKey IN( 
+	--	 The 3rd Monday of each month: 
+			 1  -- ACT - Sonoma
+			,2  -- FASST - Sonoma 
+			,4  -- TBS - Napa
+			,13 -- TBS - Marin
+			,14 -- TBS - Sonoma
+			,15 -- Katie A. - Napa
+			,32 -- TBS - Sonoma - Katie A.
+			))AS rd3 ON rd3.OP__DOCID = pc.OP__DOCID	
+											
+-- 3rd Tuesday Chart review for 17 -- FSP - Marin   -- 20191204
+LEFT JOIN
+(SELECT OP__DOCID, Tu3rd
+FROM (SELECT *, 
+		CASE WHEN Date_Admit_Program < DATEADD(DAY, (DATEDIFF(DAY, 1, DATEADD(MONTH, DATEDIFF(MONTH, 0, Date_Admit_Program), 0)) / 7) * 7 + 18, 4)
+			      THEN DATEADD(DAY, (DATEDIFF(DAY, 1, DATEADD(MONTH, DATEDIFF(MONTH, 0, Date_Admit_Program), 0)) / 7) * 7 + 18, 4)
+			 WHEN Date_Admit_Program >= DATEADD(DAY, (DATEDIFF(DAY, 1, DATEADD(MONTH, DATEDIFF(MONTH, 0, Date_Admit_Program), 0)) / 7) * 7 + 18, 4)
+				  THEN DATEADD(DAY, (DATEDIFF(DAY, 1, DATEADD(MONTH, DATEDIFF(MONTH, 0, Date_Admit_Program), 27)) / 7) * 7 + 18, 4)  
+		END AS Tu3rd
+		FROM FD__PROGRAM_CLIENT) AS pcrd3tu
+		LEFT JOIN BLU_Programs AS pr3tu ON pr3tu.PgmKey = pcrd3tu.PgmKey 
+		WHERE pr3tu.PgmKey IN( 
+			--	 The 3rd Tues of each month:
+					17 -- FSP - Marin 
+			))AS rdtu3 ON rdtu3.OP__DOCID = pc.OP__DOCID	
+
+-- 3rd Wednesday Chart review for OBH - Sonoma -- 20191204
+LEFT JOIN
+(SELECT OP__DOCID, 
+	   W3rd
+FROM (SELECT *, 
+		CASE WHEN Date_Admit_Program < DATEADD(DAY, (DATEDIFF(DAY, 1, DATEADD(MONTH, DATEDIFF(MONTH, 0, Date_Admit_Program), 0)) / 7) * 7 + 17, 6)
+			      THEN DATEADD(DAY, (DATEDIFF(DAY, 1, DATEADD(MONTH, DATEDIFF(MONTH, 0, Date_Admit_Program), 0)) / 7) * 7 + 17, 6)
+			 WHEN Date_Admit_Program >= DATEADD(DAY, (DATEDIFF(DAY, 1, DATEADD(MONTH, DATEDIFF(MONTH, 0, Date_Admit_Program), 0)) / 7) * 7 + 17, 6)
+				  THEN DATEADD(DAY, (DATEDIFF(DAY, 1, DATEADD(MONTH, DATEDIFF(MONTH, 0, Date_Admit_Program), 29)) / 7) * 7 + 17, 6)  
+		END AS W3rd
+		FROM FD__PROGRAM_CLIENT) AS pcrd3w
+		LEFT JOIN BLU_Programs AS pr3tu ON pr3tu.PgmKey = pcrd3w.PgmKey 
+		WHERE pr3tu.PgmKey IN( 
+			--	 The 3rd Wednesday of each month 
+					24 -- OBH - Sonoma
+			))AS rdw3 ON rdw3.OP__DOCID = pc.OP__DOCID	
