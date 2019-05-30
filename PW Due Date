@@ -1,0 +1,213 @@
+SELECT 
+	 pc.ClientKey											    
+	, cli.Fullname											        
+	, pro.PgmName						             		     
+	, pc.Date_Admit_Program	AS Ep_Open_Date									     
+	, pc.Date_Admit_Program AS Intake_PaperworkDue	
+	, Days10
+	-- CQRT and 60 Days Chart Reviews -- 20190412 
+	, CASE WHEN M3rd IS NOT NULL THEN M3rd
+		   WHEN Tu3rd IS NOT NULL THEN Tu3rd
+		   WHEN F3rd IS NOT NULL THEN F3rd
+		   WHEN CQRT IS NOT NULL THEN CQRT --20190327 
+	END AS Initial_Chart_Rev	
+										 																
+	, CASE WHEN Days30PPW IS NOT NULL THEN Days30PPW
+		 --  WHEN W3rd IS NOT NULL THEN W3rd
+	  END AS Days30PWD_Chart 
+	, DATEADD(Year, 18, cli.DOB) AS DateTurn18		
+	, DATEADD(YEAR, 21, cli.DOB) AS DateTurn21		-- 20190102	 	
+	, Months3PPW   								    -- 20190102	  	
+	-- The County Report is due at Intake, 6mo, Annual and Discharge. 
+	, DATEADD(Month, 6, Date_Admit_Program) AS Months6PPW
+	, Months9PPW   
+	, ISNULL(Annual_Paperwork, Alameda_Annual_PaperDue) AS FirstAnnualPaperWork
+	, DATEADD(YEAR, 1, Date_Admit_Program) AS FirstAnnualAnniversaryDate
+      -- Discharge Paperwork Due 
+	, pc.Date_Discharged_Program														
+	, DATEADD(DAY, 7, pc.Date_Discharged_Program) AS DisPPWDueDate			    
+	, staf.FullName	AS ResponsibleClinician
+	, pc.DischargePPWDate
+	, cli.OP__DOCID			
+ 
+																		  
+FROM FD__PROGRAM_CLIENT AS pc  
+LEFT JOIN FD__CLIENTS AS cli ON pc.Clientkey = cli.ClientKey 
+-- 10 Day Paperwork (Only for Restart Residential, Beacon Community Counseling) 
+LEFT JOIN 
+		 (SELECT Days10, OP__DOCID FROM
+		                               (SELECT *, DATEADD(DAY, 10, Date_Admit_Program) AS Days10 
+		  FROM FD__PROGRAM_CLIENT) AS pc1 
+		  LEFT JOIN BLU_Programs AS pro1 ON pro1.PgmKey = pc1.PgmKey 
+		  -- Beacon Community Counseling & Restart Residential and Extended Day programs 
+		  WHERE pro1.PgmKey IN (  24   -- OBH - Sonoma
+							    , 28   -- Restart Residential
+								, 29   -- Restart Extended Day --20190328
+		    				    , 30   -- OBH - Alameda 
+							    , 31   -- OBH - Marin
+							    )) AS d10 ON d10.OP__DOCID = pc.OP__DOCID
+													 
+-- 30 Day Paperwork (All MH programs except Restart Resi & Beacon) 
+LEFT JOIN 
+		 (SELECT Days30PPW, OP__DOCID FROM
+							            (SELECT *, DATEADD(DAY, 25, Date_Admit_Program) AS Days30PPW 	
+		  FROM FD__PROGRAM_CLIENT) AS pc2 
+		  LEFT JOIN BLU_Programs AS pro2 ON pro2.PgmKey = pc2.PgmKey 
+		  -- (All MH programs except Restart Resi & Beacon) 
+		  WHERE pro2.PgmKey NOT IN(  24   -- OBH - Sonoma
+							       , 28   -- Restart Residential
+								   , 29   -- Restart Extended Day --20190328
+		    				       , 30   -- OBH - Alameda 
+							       , 31   -- OBH - Marin
+								    )) AS day30 ON day30.OP__DOCID = pc.OP__DOCID
+
+-- CQRT column for MH Alameda   02/11/2019*/
+-- e.	Add new column for ‘CQRT’ (CQRT happens every 1st Monday of each month when the case has been open 
+-- for around 60days so the date in this column should show the first Monday of the month closest to 60days from 
+-- Episode Opening Date). CQRT date should be the closest 1st Monday of the month to 60days from episode opening. 
+--This would be the closest before or after the 60days, whichever is closest.  
+LEFT JOIN 
+(SELECT OP__DOCID , CQRT
+FROM 
+(SELECT * , DATEADD(WEEK, DATEDIFF(WEEK, 0,
+         DATEADD(DAY, 6 - DATEPART(DAY, Date_Admit_Program), Date_Admit_Program + 60)), 0) AS CQRT 
+				FROM FD__PROGRAM_CLIENT) AS pc7
+				LEFT JOIN BLU_Programs AS pro7 ON pro7.PgmKey = pc7.PgmKey 
+											WHERE pro7.PgmKey = 5 -- MH - Alameda
+											)AS CQRT ON CQRT.OP__DOCID = pc.OP__DOCID		
+																		
+-- 3rd Monday for ACT - Sonoma, FASST - Sonoma, Katie A. - Napa, TBS - Marin, TBS - Sonoma, TBS - Sonoma - Katie A. -- 20191204
+LEFT JOIN
+(SELECT OP__DOCID , M3rd
+FROM (SELECT *, 
+		CASE WHEN Date_Admit_Program < DATEADD(DAY, (DATEDIFF(DAY, 1, DATEADD(MONTH, DATEDIFF(MONTH, 0, Date_Admit_Program), 0)) / 7) * 7 + 19, 2) 
+			THEN DATEADD(DAY, (DATEDIFF(DAY, 1, DATEADD(MONTH, DATEDIFF(MONTH, 0, Date_Admit_Program), 0)) / 7) * 7 + 19, 2) 
+			WHEN Date_Admit_Program >= DATEADD(DAY, (DATEDIFF(DAY, 1, DATEADD(MONTH, DATEDIFF(MONTH, 0, Date_Admit_Program), 0)) / 7) * 7 + 19, 2) 
+		         THEN DATEADD(DAY, (DATEDIFF(DAY, 1, 
+												  DATEADD(MONTH, DATEDIFF(MONTH, 0, Date_Admit_Program), 26)) / 7) * 7 + 19, 2)
+			END AS M3rd
+		FROM FD__PROGRAM_CLIENT) AS pcrd3
+		LEFT JOIN BLU_Programs AS pr3 ON pr3.PgmKey = pcrd3.PgmKey 
+		WHERE pr3.PgmKey IN( 
+	--	 The 3rd Monday of each month: 
+			 1  -- ACT - Sonoma
+			,2  -- FASST - Sonoma 
+			,4  -- TBS - Napa
+			,13 -- TBS - Marin
+			,14 -- TBS - Sonoma
+			,15 -- Katie A. - Napa
+			,32 -- TBS - Sonoma - Katie A.
+			))AS rd3 ON rd3.OP__DOCID = pc.OP__DOCID	
+											
+-- 3rd Tuesday Chart review for 17 -- FSP - Marin   -- 20191204
+LEFT JOIN
+(SELECT OP__DOCID, Tu3rd
+FROM (SELECT *, 
+		CASE WHEN Date_Admit_Program < DATEADD(DAY, (DATEDIFF(DAY, 1, DATEADD(MONTH, DATEDIFF(MONTH, 0, Date_Admit_Program), 0)) / 7) * 7 + 18, 4)
+			      THEN DATEADD(DAY, (DATEDIFF(DAY, 1, DATEADD(MONTH, DATEDIFF(MONTH, 0, Date_Admit_Program), 0)) / 7) * 7 + 18, 4)
+			 WHEN Date_Admit_Program >= DATEADD(DAY, (DATEDIFF(DAY, 1, DATEADD(MONTH, DATEDIFF(MONTH, 0, Date_Admit_Program), 0)) / 7) * 7 + 18, 4)
+				  THEN DATEADD(DAY, (DATEDIFF(DAY, 1, DATEADD(MONTH, DATEDIFF(MONTH, 0, Date_Admit_Program), 27)) / 7) * 7 + 18, 4)  
+		END AS Tu3rd
+		FROM FD__PROGRAM_CLIENT) AS pcrd3tu
+		LEFT JOIN BLU_Programs AS pr3tu ON pr3tu.PgmKey = pcrd3tu.PgmKey 
+		WHERE pr3tu.PgmKey IN( 
+			--	 The 3rd Tues of each month:
+					17 -- FSP - Marin 
+			))AS rdtu3 ON rdtu3.OP__DOCID = pc.OP__DOCID	
+
+-- 3rd Friday Chart review for OBH - Sonoma -- 20190515
+LEFT JOIN
+(SELECT OP__DOCID, F3rd
+FROM(
+SELECT *, CASE WHEN (Date_Admit_Program+25) <= CAST(DATEDIFF(dd,-3,DATEADD(mm,DATEDIFF(mm,0,(Date_Admit_Program+25)),0))/7*7+4+14 AS DATETIME)
+		   THEN CAST(DATEDIFF(dd,-3,DATEADD(mm,DATEDIFF(mm,0,(Date_Admit_Program+25)),0))/7*7+4+14 AS DATETIME)
+		   ELSE CAST(DATEDIFF(dd,-3,DATEADD(mm,DATEDIFF(mm,0,(Date_Admit_Program+25))+1,0))/7*7+4+14 AS DATETIME)
+        END AS F3rd 
+		FROM FD__PROGRAM_CLIENT) AS pcrd3F
+		LEFT JOIN BLU_Programs AS pr3F ON pr3F.PgmKey = pcrd3F.PgmKey
+		--	 The 3rd Friday of each month 
+		-- OBH - Sonoma
+		WHERE pr3F.PgmKey IN( 24 ))AS rdF3 ON rdF3.OP__DOCID = pc.OP__DOCID	
+
+
+-- Add 2 new columns, due dates(for Alameda Housing, ACT/PRIDE, and Restart Extended Day only), called ‘3mo’, ‘9mo’. 20190201 */
+-- 3mo column 
+LEFT JOIN
+	(SELECT OP__DOCID, Months3PPW 
+		 FROM (SELECT *, DATEADD(Month, 3, Date_Admit_Program) AS Months3PPW  	
+			FROM FD__PROGRAM_CLIENT) AS pc5
+			LEFT JOIN BLU_Programs AS pro5 ON pro5.PgmKey = pc5.PgmKey 
+			WHERE pro5.PgmKey IN (
+								   1   -- 'ACT - Sonoma'
+								 , 6   -- 'Refocus - Alameda'
+								 , 7   -- 'Housing - Alameda'
+								 , 26  -- 'ACT - Katie A.'
+								 , 29  -- Restart Extended Day  20190328 
+								   )) AS act3 ON act3.OP__DOCID = pc.OP__DOCID
+-- 9mo column 
+LEFT JOIN
+	(SELECT OP__DOCID, Months9PPW
+		 FROM (SELECT *, DATEADD(Month, 9, Date_Admit_Program) AS Months9PPW  	
+			FROM FD__PROGRAM_CLIENT) AS pc9
+			LEFT JOIN BLU_Programs AS pro9 ON pro9.PgmKey = pc9.PgmKey 
+			WHERE pro9.PgmKey IN (
+								   1   -- 'ACT - Sonoma'
+								 , 6   -- 'Refocus - Alameda'
+								 , 7   -- 'Housing - Alameda'
+								 , 26  -- 'ACT - Katie A.'
+								   )) AS act9 ON act9.OP__DOCID = pc.OP__DOCID
+
+-- Annual_Paperwork (All MH programs except Alameda MH) 
+LEFT JOIN 
+		 (SELECT OP__DOCID, Annual_Paperwork
+		  FROM(SELECT *,
+						DATEADD(YEAR, 1, DATEADD(DAY, DATEDIFF(DAY, 0, Date_Admit_Program), -15)) AS Annual_Paperwork
+			FROM FD__PROGRAM_CLIENT) AS pc5 
+			LEFT JOIN BLU_Programs AS pro5 ON pro5.PgmKey = pc5.PgmKey 
+			-- To exclude Alameda MH programs 
+			WHERE pro5.PgmKey NOT IN (  5   -- MH - Alameda
+								      , 16  -- Katie A. - Alameda
+		    					      , 30  -- OBH - Alameda 
+								       )) AS AP ON AP.OP__DOCID = pc.OP__DOCID
+
+-- Annual Paperwork (Only Alameda MH)
+LEFT JOIN 
+ (SELECT OP__DOCID, Alameda_Annual_PaperDue
+	FROM(SELECT *, DATEADD(YEAR, 1, DATEADD(MONTH, DATEDIFF(MONTH, 0, Date_Admit_Program) -1, 14)
+																) AS Alameda_Annual_PaperDue	
+			FROM FD__PROGRAM_CLIENT) AS pc4 
+			LEFT JOIN BLU_Programs AS pro4 ON pro4.PgmKey = pc4.PgmKey 
+			-- Annual Paperwork (Only Alameda MH) 
+			WHERE pro4.PgmKey IN (  5   -- MH - Alameda
+								  , 16  -- Katie A. - Alameda
+		    					  , 30  -- OBH - Alameda 
+								   )) AS AAPD ON AAPD.OP__DOCID = pc.OP__DOCID		
+
+LEFT JOIN BLU_Programs AS pro ON pc.PgmKey = pro.PgmKey
+ --Assigned Staff		  
+OUTER APPLY
+ ( SELECT TOP 1 staffkey FROM FD__STAFF_ASSIGNED 
+		  WHERE ClientKey = cli.ClientKey 
+		  AND programAdmitKey = pc.PgmAdmissionKey
+		  AND RespPaperwork = 'Yes'
+		  ORDER BY DateStart DESC) SA
+
+LEFT JOIN FD__STAFF AS staf ON staf.StaffKey = sa.StaffKey
+-- Excluding Programs	  
+WHERE pro.PgmKey NOT IN (  2   --'ERMHS - Marin'
+						 , 6   --'Refocus - Alameda'
+						 , 8   --'Housing - Sonoma'
+						 , 9   --'Hunt School'
+						 , 10  --'YouThrive - Sonoma'
+						 , 11  --'YouThrive - Marin'
+                         , 18  --'Housing - Marin'
+						 , 19  --'DIS - Marin'
+						 , 20  --'YouThrive - Contra Costa'
+						 , 21  --'Our Space - YAC'
+						 , 22  --'Our Space - Community Center'
+						 , 23  --'TAY Drop-In - Marin'
+	                      )
+						  	                      
+	-- Excluding test clients  
+AND	 cli.FULLNAME NOT LIKE '%TEST%' 
+AND  pc.DischargePPWDate IS NULL  
